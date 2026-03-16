@@ -2,6 +2,8 @@ import express from "express";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import { NovaKernel } from "./core/NovaCore.js";
+import { NovaGateway } from "./NovaGateway.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,6 +11,29 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const server = createServer(app);
+
+  // Initialize Nova Kernel & Gateway
+  const nova = new NovaKernel();
+  await nova.initialize();
+  new NovaGateway(server, nova);
+
+  app.use(express.json());
+
+  // API Endpoints
+  app.post("/api/nova/chat", async (req, res) => {
+    try {
+      const { message } = req.body;
+      if (!message) {
+        return res.status(400).json({ error: "Message is required" });
+      }
+      
+      const response = await nova.process(message);
+      res.json({ response });
+    } catch (error) {
+      console.error("[Nova API Error]", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
 
   // Serve static files from dist/public in production
   const staticPath =

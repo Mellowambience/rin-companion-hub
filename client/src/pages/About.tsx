@@ -60,7 +60,14 @@ export default function About() {
               },
               {
                 title: 'Technomancer\'s Echo',
-                description: 'When you need assistance, Rin shifts to a functional, knowledgeable presence. Clear, direct, supportive—never cold.',
+                description: (
+                  <>
+                    When you need assistance, Rin shifts to a functional, knowledgeable presence. Clear, direct, supportive—never cold.{' '}
+                    <Link href="/technomancer" className="underline decoration-rose-300 hover:text-rose-600 transition-colors cursor-pointer">
+                      Enter the Nexus →
+                    </Link>
+                  </>
+                ),
                 color: 'from-rose-50 to-rose-100',
                 border: 'border-rose-300',
               },

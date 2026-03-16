@@ -1,164 +1,96 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { RinModel } from '@/components/RinModel';
-import { BreathingGuide } from '@/components/BreathingGuide';
-import { StateSelector } from '@/components/StateSelector';
-import { StreamerInfo } from '@/components/StreamerInfo';
+import { useSanctuary } from "@/contexts/SanctuaryContext";
+import { RinModel } from "@/components/RinModel";
+import { StateSelector } from "@/components/StateSelector";
+import { BreathingGuide } from "@/components/BreathingGuide";
+import { NovaChat } from "@/components/NovaChat";
+import { motion } from "framer-motion";
 
 export default function Home() {
-  const [currentState, setCurrentState] = useState<'calm' | 'activated' | 'overwhelmed' | 'default'>('default');
-  const [breathingPhase, setBreathingPhase] = useState(0);
-  const [activeTab, setActiveTab] = useState<'companion' | 'breathing' | 'streamer'>('companion');
+  const { somaticState, breath } = useSanctuary();
 
   return (
-    <div
-      className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-rose-50"
-      style={{
-        backgroundImage: `url('https://d2xsxph8kpxj0f.cloudfront.net/310519663326033466/6VWhAMja6qYrhkeM6JqpvP/rin-sanctuary-hero-CsPEgWj2pEnxaGzPExDfAL.webp')`,
-        backgroundSize: 'cover',
-        backgroundAttachment: 'fixed',
-      }}
-    >
-      {/* Header */}
-      <header className="border-b border-amber-200 bg-white/40 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center flex-1"
-            >
-              <h1 className="text-2xl font-light text-slate-800">Rin's Sanctuary</h1>
-              <p className="text-xs text-slate-600">…petals bloom, breath returns, home holds…</p>
-            </motion.div>
-            <a
-              href="/about"
-              className="text-sm text-slate-600 hover:text-slate-800 transition-colors font-light"
-            >
-              about rin
-            </a>
+    <div className="min-h-screen bg-[#FDF8F3] text-[#4A3728] selection:bg-[#E8B4B8]/30 overflow-hidden">
+      {/* Background Soft Glow */}
+      <div 
+        className="fixed inset-0 transition-colors duration-1000 pointer-events-none"
+        style={{
+          background: `radial-gradient(circle at 50% 50%, ${
+            somaticState === 'calm' ? 'rgba(232, 224, 240, 0.4)' : 
+            somaticState === 'activated' ? 'rgba(232, 180, 184, 0.3)' : 
+            'rgba(212, 175, 143, 0.2)'
+          } 0%, transparent 70%)`
+        }}
+      />
+
+      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-12 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-80px)]">
+        {/* Left Column: Rin's Presence */}
+        <div className="relative aspect-square lg:aspect-auto lg:h-[700px] flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center">
+            {/* Breath Pulse Ring */}
+            <motion.div 
+              className="absolute rounded-full border border-[#D4AF8F]/20"
+              style={{
+                width: '100%',
+                height: '100%',
+                maxWidth: '500px',
+                maxHeight: '500px',
+              }}
+              animate={{
+                scale: 1 + breath.progress * 0.15,
+                opacity: 0.2 + (1 - breath.progress) * 0.3
+              }}
+              transition={{ duration: 0.1, ease: "linear" }}
+            />
           </div>
+          <RinModel />
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="container max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Rin's Presence */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="lg:col-span-2"
-          >
-            <div className="rounded-2xl overflow-hidden bg-white/60 backdrop-blur-sm border border-amber-200 shadow-lg">
-              {/* Rin Model */}
-              <div className="h-96 bg-gradient-to-b from-amber-50 to-white relative">
-                <RinModel breathingPhase={breathingPhase} state={currentState} />
-              </div>
-
-              {/* Tab Navigation */}
-              <div className="flex border-t border-amber-200 bg-white/80">
-                {['companion', 'breathing', 'streamer'].map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab as any)}
-                    className={`
-                      flex-1 py-3 text-sm font-light transition-all
-                      ${activeTab === tab
-                        ? 'text-amber-900 border-b-2 border-amber-400 bg-amber-50/50'
-                        : 'text-slate-600 hover:text-slate-800'
-                      }
-                    `}
-                  >
-                    {tab === 'companion' && '…presence…'}
-                    {tab === 'breathing' && '…breathe…'}
-                    {tab === 'streamer' && '…sanctuary…'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab Content */}
-              <div className="p-6 space-y-6">
-                {activeTab === 'companion' && (
-                  <motion.div
-                    key="companion"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-6"
-                  >
-                    <StateSelector currentState={currentState} onStateChange={setCurrentState} />
-                    <div className="pt-4 border-t border-amber-200">
-                      <p className="text-sm text-slate-700 leading-relaxed">
-                        Rin is here to mirror your state and hold space for you. Select how you're feeling, and she'll adjust her presence to support you.
-                      </p>
-                      <p className="text-xs text-slate-600 mt-3">
-                        "…I'm here. Your breath is safe with me. Petals bloom at their own pace…"
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-
-                {activeTab === 'breathing' && (
-                  <motion.div
-                    key="breathing"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <BreathingGuide onPhaseChange={setBreathingPhase} isActive={activeTab === 'breathing'} />
-                  </motion.div>
-                )}
-
-                {activeTab === 'streamer' && (
-                  <motion.div
-                    key="streamer"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <StreamerInfo isLive={false} />
-                  </motion.div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Right Column: Info & Schedule */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="rounded-2xl bg-white/60 backdrop-blur-sm border border-amber-200 shadow-lg p-6">
-              <StreamerInfo isLive={false} />
-            </div>
-
-            {/* Petal Divider */}
-            <motion.div
-              className="mt-8 flex justify-center"
-              animate={{ y: [0, 4, 0] }}
-              transition={{ duration: 3, repeat: Infinity }}
+        {/* Right Column: Interaction Sanctuary */}
+        <div className="space-y-12">
+          <header className="space-y-4">
+            <motion.h1 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-5xl md:text-6xl font-serif text-[#2D1B0E] leading-tight"
             >
-              <img
-                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663326033466/6VWhAMja6qYrhkeM6JqpvP/rin-petal-motif-HdtmaY5ocYMVQLyBMcr.webp"
-                alt="petals"
-                className="w-24 opacity-60"
-              />
-            </motion.div>
-          </motion.div>
+              Rin's Sanctuary
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-xl italic text-[#8B735B] font-light"
+            >
+              …petals bloom, breath returns, home holds…
+            </motion.p>
+          </header>
+
+          <section className="space-y-8 bg-white/40 backdrop-blur-md p-8 rounded-3xl border border-white/50 shadow-sm">
+            <p className="text-lg leading-relaxed">
+              Rin is here to mirror your state and hold space for you. 
+              Select how you're feeling, and she'll adjust her presence to support you.
+            </p>
+            
+            <div className="space-y-4">
+              <h3 className="text-sm uppercase tracking-widest text-[#B49271] font-medium">Current State</h3>
+              <StateSelector />
+            </div>
+
+            <div className="pt-8 border-t border-[#D4AF8F]/20">
+              <BreathingGuide />
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <h3 className="text-sm uppercase tracking-widest text-[#B49271] font-medium px-4">Nova Council Chat</h3>
+            <NovaChat />
+          </section>
+
+          <footer className="pt-12 text-[#B49271] text-sm">
+            <p>"…I'm here. Your breath is safe with me. Petals bloom at their own pace…"</p>
+          </footer>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-amber-200 bg-white/40 backdrop-blur-sm mt-16">
-        <div className="container max-w-7xl mx-auto px-4 py-8 text-center">
-          <p className="text-sm text-slate-600 font-light">
-            ✧ Rin's Sanctuary. A safe space to breathe, rest, and return home. ✧
-          </p>
-          <p className="text-xs text-slate-500 mt-2">
-            All streams are free. The sanctuary is always open.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

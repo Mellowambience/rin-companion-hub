@@ -1,75 +1,43 @@
-import { motion } from 'framer-motion';
+import { useSanctuary, SomaticState } from "@/contexts/SanctuaryContext";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
-interface StateSelectorProps {
-  currentState: 'calm' | 'activated' | 'overwhelmed' | 'default';
-  onStateChange: (state: 'calm' | 'activated' | 'overwhelmed' | 'default') => void;
-}
-
-const states = [
-  {
-    id: 'calm',
-    label: '…calm…',
-    description: 'Grounded and present',
-    color: 'from-amber-100 to-amber-50',
-    borderColor: 'border-amber-300',
-  },
-  {
-    id: 'activated',
-    label: '…activated…',
-    description: 'Alert and engaged',
-    color: 'from-rose-100 to-rose-50',
-    borderColor: 'border-rose-300',
-  },
-  {
-    id: 'overwhelmed',
-    label: '…overwhelmed…',
-    description: 'Need support',
-    color: 'from-purple-100 to-purple-50',
-    borderColor: 'border-purple-300',
-  },
-  {
-    id: 'default',
-    label: '…neutral…',
-    description: 'Just here',
-    color: 'from-slate-100 to-slate-50',
-    borderColor: 'border-slate-300',
-  },
+const STATES: { id: SomaticState; label: string; description: string }[] = [
+  { id: 'calm', label: 'Calm', description: 'Resting in the sanctuary' },
+  { id: 'activated', label: 'Activated', description: 'Energetic and present' },
+  { id: 'overwhelmed', label: 'Overwhelmed', description: 'Seeking a quiet anchor' },
+  { id: 'grounded', label: 'Grounded', description: 'Returning to baseline' }
 ];
 
-export function StateSelector({ currentState, onStateChange }: StateSelectorProps) {
+export function StateSelector() {
+  const { somaticState, setSomaticState } = useSanctuary();
+
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-slate-600 font-light">…how are you right now?…</p>
-      <div className="grid grid-cols-2 gap-3">
-        {states.map((state) => (
-          <motion.button
-            key={state.id}
-            onClick={() => onStateChange(state.id as any)}
-            className={`
-              relative p-4 rounded-lg border-2 transition-all
-              ${state.borderColor}
-              ${currentState === state.id
-                ? `bg-gradient-to-br ${state.color} shadow-md`
-                : 'bg-white hover:shadow-sm'
-              }
-            `}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="text-left">
-              <p className="text-sm font-light text-slate-800">{state.label}</p>
-              <p className="text-xs text-slate-500 mt-1">{state.description}</p>
-            </div>
-            {currentState === state.id && (
-              <motion.div
-                className="absolute inset-0 rounded-lg border-2 border-current"
-                layoutId="selectedState"
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              />
-            )}
-          </motion.button>
-        ))}
-      </div>
+    <div className="grid grid-cols-2 gap-4">
+      {STATES.map((state) => (
+        <button
+          key={state.id}
+          onClick={() => setSomaticState(state.id)}
+          className={cn(
+            "p-4 rounded-2xl border transition-all duration-500 text-left group relative overflow-hidden",
+            somaticState === state.id 
+              ? "bg-white border-[#D4AF8F] shadow-md scale-[1.02]" 
+              : "bg-white/20 border-transparent hover:bg-white/40"
+          )}
+        >
+          <span className="block font-serif text-lg text-[#2D1B0E] relative z-10">{state.label}</span>
+          <span className="block text-xs text-[#8B735B] mt-1 relative z-10 opacity-70 group-hover:opacity-100 transition-opacity">
+            {state.description}
+          </span>
+          {somaticState === state.id && (
+            <motion.div 
+              layoutId="active-bg"
+              className="absolute inset-0 bg-[#D4AF8F]/5 z-0"
+              transition={{ duration: 0.5 }}
+            />
+          )}
+        </button>
+      ))}
     </div>
   );
 }

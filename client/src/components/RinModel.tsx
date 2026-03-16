@@ -1,101 +1,127 @@
-import { useEffect, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useEffect, useRef, useState } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three-stdlib';
+import { VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { useSanctuary } from '../contexts/SanctuaryContext';
 
 interface RinModelProps {
-  breathingPhase?: number;
-  state?: 'calm' | 'activated' | 'overwhelmed' | 'default';
-  isStreaming?: boolean;
+  // Props are now largely managed via useSanctuary
 }
 
-function RinModelContent({ breathingPhase = 0, state = 'default' }: RinModelProps) {
-  const sceneRef = useRef<THREE.Group>(null);
-  const modelRef = useRef<THREE.Object3D | null>(null);
+function RinModelContent() {
+  const { breath, somaticState } = useSanctuary();
+  const [vrm, setVrm] = useState<VRM | null>(null);
+  const { camera } = useThree();
 
   useEffect(() => {
-    // Load VRM model as a generic glTF
     const loader = new GLTFLoader();
-    
+    loader.register((parser) => new VRMLoaderPlugin(parser as any) as any);
+
     loader.load(
       '/Rin_.vrm',
-      (gltf: any) => {
-        const model = gltf.scene;
-        model.scale.set(1.2, 1.2, 1.2);
-        model.position.set(0, -0.5, 0);
+      (gltf) => {
+        const vrmModel = gltf.userData.vrm as VRM;
         
-        // Traverse and set up materials for soft lighting
-        model.traverse((node: any) => {
-          if (node instanceof THREE.Mesh) {
-            node.castShadow = true;
-            node.receiveShadow = true;
-            if (node.material instanceof THREE.Material) {
-              node.material.side = THREE.FrontSide;
-            }
-          }
+        // Remove unnecessary mesh parts if needed or rotate
+        VRMUtils.rotateVRM0(vrmModel); // Ensure correct orientation for VRM0
+        
+        vrmModel.scene.traverse((obj) => {
+          obj.frustumCulled = false; // Prevent flickering
         });
-        
-        if (sceneRef.current) {
-          sceneRef.current.add(model);
-        }
-        modelRef.current = model;
+
+        setVrm(vrmModel);
       },
       undefined,
-      (error: any) => {
-        console.error('Error loading Rin model:', error);
-      }
+      (error) => console.error('Error loading VRM:', error)
     );
   }, []);
 
-  useFrame(() => {
-    if (modelRef.current && sceneRef.current) {
-      // Breathing animation
-      const breathAmount = Math.sin(breathingPhase * Math.PI * 2) * 0.03;
-      modelRef.current.position.y = -0.5 + breathAmount;
+  useFrame((state, delta) => {
+    if (vrm) {
+      vrm.update(delta);
 
-      // State-based animations
-      switch (state) {
-        case 'calm':
-          sceneRef.current.rotation.z = Math.sin(Date.now() * 0.0005) * 0.015;
-          break;
-        case 'activated':
-          sceneRef.current.rotation.z = 0;
-          break;
-        case 'overwhelmed':
-          sceneRef.current.rotation.z = 0;
-          break;
+      // --- Natural Idle Pose (Arms down) ---
+      const leftUpperArm = vrm.humanoid?.getRawBoneNode('leftUpperArm');
+      const rightUpperArm = vrm.humanoid?.getRawBoneNode('rightUpperArm');
+      const leftLowerArm = vrm.humanoid?.getRawBoneNode('leftLowerArm');
+      const rightLowerArm = vrm.humanoid?.getRawBoneNode('rightLowerArm');
+      
+      if (leftUpperArm && rightUpperArm) {
+        // Significantly lower arms to sides (z-axis in THREE.js for VRM humanoid)
+        leftUpperArm.rotation.z = -1.45; 
+        rightUpperArm.rotation.z = 1.45;
+        // Slightly rotate shoulders forward
+        leftUpperArm.rotation.x = 0.1;
+        rightUpperArm.rotation.x = 0.1;
+
+        if (leftLowerArm && rightLowerArm) {
+          leftLowerArm.rotation.y = 0.4;
+          rightLowerArm.rotation.y = -0.4;
+        }
+      }
+
+      // --- Head Sway ---
+      const head = vrm.humanoid?.getRawBoneNode('head');
+      if (head) {
+        head.rotation.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
+        head.rotation.x = Math.sin(state.clock.elapsedTime * 0.8) * 0.05;
+      }
+
+      // --- Somatic Breathing Animation ---
+      // Apply to Spine and Chest bones for natural movement
+      const spine = vrm.humanoid?.getRawBoneNode('spine');
+      const chest = vrm.humanoid?.getRawBoneNode('chest');
+      
+      if (spine && chest) {
+        // Base breath amount varies by state
+        const intensity = somaticState === 'calm' ? 0.02 : 0.04;
+        
+        // Smooth sine wave based on the 4-4-6-2 cycle progress
+        const breathValue = Math.sin(breath.totalProgress * Math.PI * 2);
+        
+        spine.rotation.x = breathValue * intensity;
+        chest.rotation.x = breathValue * intensity * 0.5;
+      }
+
+      // --- Blink Logic ---
+      const blinkIntensity = Math.max(0, Math.sin(state.clock.elapsedTime * 2) > 0.98 ? 1 : 0);
+      vrm.expressionManager?.setValue('blink', blinkIntensity);
+
+      // --- State-based Expressions ---
+      if (somaticState === 'calm') {
+        vrm.expressionManager?.setValue('relaxed', 0.5);
+        vrm.expressionManager?.setValue('neutral', 0.5);
+      } else if (somaticState === 'activated') {
+        vrm.expressionManager?.setValue('surprised', 0.2);
+        vrm.expressionManager?.setValue('neutral', 0.8);
       }
     }
   });
 
   return (
-    <group ref={sceneRef}>
-      <ambientLight intensity={0.85} color={0xfdf8f3} />
-      <directionalLight position={[3, 4, 3]} intensity={0.7} color={0xd4af8f} castShadow />
-      <pointLight position={[-2, 2, 2]} intensity={0.4} color={0xe8e0f0} />
-      <pointLight position={[0, -1, 1]} intensity={0.2} color={0xe8b4b8} />
+    <group>
+      {vrm && <primitive object={vrm.scene} />}
+      <ambientLight intensity={1.2} color={0xfdf8f3} />
+      <directionalLight position={[3, 5, 5]} intensity={1.5} color={0xfffcf5} castShadow />
+      <pointLight position={[-3, 2, 2]} intensity={0.8} color={0xe8e0f0} />
+      <pointLight position={[0, -2, 2]} intensity={0.5} color={0xe8b4b8} />
     </group>
   );
 }
 
-export function RinModel({ breathingPhase = 0, state = 'default', isStreaming = false }: RinModelProps) {
+export function RinModel() {
   return (
-    <Canvas
-      camera={{ position: [0, 0.2, 2.5], fov: 45 }}
-      style={{
-        width: '100%',
-        height: '100%',
-        background: 'transparent',
-      }}
-      gl={{
-        antialias: true,
-        alpha: true,
-        preserveDrawingBuffer: true,
-      }}
-    >
-      <PerspectiveCamera makeDefault position={[0, 0.2, 2.5]} fov={45} />
-      <RinModelContent breathingPhase={breathingPhase} state={state} isStreaming={isStreaming} />
-    </Canvas>
+    <div className="w-full h-full relative">
+      <Canvas
+        camera={{ position: [0, 1.4, 1.2], fov: 35 }}
+        style={{ perspective: '1000px' }}
+        gl={{ antialias: true, alpha: true }}
+      >
+        <PerspectiveCamera makeDefault position={[0, 1.4, 1.5]} fov={35} />
+        <RinModelContent />
+      </Canvas>
+    </div>
   );
 }
